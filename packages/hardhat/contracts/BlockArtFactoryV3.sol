@@ -247,14 +247,6 @@ contract BlockArtFactoryV3 is Ownable {
 
     /// @notice Getters
 
-    function getStyleBalance(uint256 styleId) external view returns (uint256) {
-        return scfb[styleId];
-    }
-
-    function getCoinsBalance() external view returns (uint256) {
-        return coinsBalance;
-    }
-
     function getPriceCeil() external view returns (uint256) {
         return priceCeil;
     }
