@@ -52,8 +52,6 @@ contract BlockArtFactoryV3 is Ownable {
     uint256 public burnFee; // Cost of burning a BlockArt
     uint256 public dutchLength; // length of dutch price decrease;
 
-    mapping(uint256 => bool) asl; // allowed styles list
-
     struct Bp {
         uint256 bNumber;
         uint256 value;
@@ -115,12 +113,14 @@ contract BlockArtFactoryV3 is Ownable {
         BlockArtVault(vaultAddr).depositAndSplit{value: msg.value}(styleId, styleFeeBasisPoints, charityFeeBasisPoints);
 
         BlockArt _blockArt = BlockArt(artsAddr);
+
+        // slither-disable-next-line unused-return
         _blockArt.mint(to, blockNumber, styleId, msg.value, metadata);
 
         BlockArtFactory _oldFa = BlockArtFactory(oldFactoryAddr);
         _oldFa.setPsfb(blockNumber, msg.value);
     }
-    
+
 
     /// @dev owner of BlockArts can burn their token for a fee
     function burnArt(uint256 tokenId) external payable onlyArtOwner(tokenId) {
@@ -323,12 +323,6 @@ contract BlockArtFactoryV3 is Ownable {
     function setPsfbs(Bp[] calldata psfba) external onlyOwner {
         for (uint256 i = 0; i < psfba.length; i++) {
             setPsfb(psfba[i].bNumber, psfba[i].value);
-        }
-    }
-
-    function setAsl(uint256[] calldata asls) external onlyOwner {
-        for (uint256 i = 0; i < asls.length; i++) {
-            addStyle(asls[i]);
         }
     }
 
