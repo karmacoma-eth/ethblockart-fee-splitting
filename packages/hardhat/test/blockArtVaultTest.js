@@ -9,8 +9,8 @@ describe("EthBlockArt fee splitting", function () {
   let BlockArtVaultFactory;
   let BlockStyleFactory;
   let blockStyle;
-  let vault;
-  let users;
+  let vault, vaultWithWrongSigner, vaultWithStyleOwner;
+  let vaultOwner, styleOwner, someOtherUser, charityUser;
 
   async function recordBalances() {
     let coinsBalance = (await vault.coinsBalance()).toNumber();
@@ -24,8 +24,8 @@ describe("EthBlockArt fee splitting", function () {
     BlockStyleFactory = await ethers.getContractFactory("BlockStyle");
     blockStyle = await BlockStyleFactory.deploy("baseURI", "contractURI");
 
-    users = await ethers.getSigners()
-    await blockStyle.mint(users[0].address, 42, 0, 0, "canvas");
+    [owner, styleOwner, someOtherUser, charityUser] = await ethers.getSigners();
+    await blockStyle.mint(styleOwner.address, 42, 0, 0, "canvas");
   });
 
   it("should not deploy BlockArtVault without a valid BlockStyle address", async function () {
@@ -34,6 +34,9 @@ describe("EthBlockArt fee splitting", function () {
 
   it("should deploy BlockArtVault successfully with a valid BlockStyle address", async function () {
     vault = await BlockArtVaultFactory.deploy(blockStyle.address);
+    let vaultWithWrongSigner = await vault.connect(someOtherUser);
+    let vaultWithStyleOwner = await vault.connect(styleOwner);
+
     let minTreasuryFeeBasisPoints = (await vault.minTreasuryFeeBasisPoints()).toNumber();
 
     describe("when calling depositAndSplit", () => {
@@ -65,7 +68,6 @@ describe("EthBlockArt fee splitting", function () {
       it("should support sending everything to the treasury", async () => {
         let [coinsBalanceBefore, charityBalanceBefore, artistBalanceBefore] = await recordBalances();
         await vault.depositAndSplit(validStyleId, 0, 0, {value: 1000});
-
         let [coinsBalanceAfter, charityBalanceAfter, artistBalanceAfter] = await recordBalances();
 
         expect(coinsBalanceAfter).to.equal(coinsBalanceBefore + 1000);
@@ -76,7 +78,6 @@ describe("EthBlockArt fee splitting", function () {
       it("should support sending everything to the artist (minus minTreasuryFeeBasisPoints)", async () => {
         let [coinsBalanceBefore, charityBalanceBefore, artistBalanceBefore] = await recordBalances();
         await vault.depositAndSplit(validStyleId, 10000 - minTreasuryFeeBasisPoints, 0, {value: 1000});
-
         let [coinsBalanceAfter, charityBalanceAfter, artistBalanceAfter] = await recordBalances();
 
         expect(coinsBalanceAfter).to.equal(coinsBalanceBefore + 50); // 5% to the treasury
@@ -87,7 +88,6 @@ describe("EthBlockArt fee splitting", function () {
       it("should support sending everything to charity (minus minTreasuryFeeBasisPoints)", async () => {
         let [coinsBalanceBefore, charityBalanceBefore, artistBalanceBefore] = await recordBalances();
         await vault.depositAndSplit(validStyleId, 0, 10000 - minTreasuryFeeBasisPoints, {value: 1000});
-
         let [coinsBalanceAfter, charityBalanceAfter, artistBalanceAfter] = await recordBalances();
 
         expect(coinsBalanceAfter).to.equal(coinsBalanceBefore + 50); // 5% to the treasury
@@ -98,13 +98,92 @@ describe("EthBlockArt fee splitting", function () {
       it("should support arbitrary splits like 40% each to charity and artist, 20% to treasury", async () => {
         let [coinsBalanceBefore, charityBalanceBefore, artistBalanceBefore] = await recordBalances();
         await vault.depositAndSplit(validStyleId, 40 * 100, 40 * 100, {value: 1000});
-
         let [coinsBalanceAfter, charityBalanceAfter, artistBalanceAfter] = await recordBalances();
 
         expect(coinsBalanceAfter).to.equal(coinsBalanceBefore + 200);
         expect(charityBalanceAfter).to.equal(charityBalanceBefore + 400);
         expect(artistBalanceAfter).to.equal(artistBalanceBefore + 400);
       })
+
+      it("should support arbitrary splits when the value can't be nicely split", async () => {
+        let [coinsBalanceBefore, charityBalanceBefore, artistBalanceBefore] = await recordBalances();
+        await vault.depositAndSplit(validStyleId, 40 * 100, 40 * 100, {value: 1001});
+        let [coinsBalanceAfter, charityBalanceAfter, artistBalanceAfter] = await recordBalances();
+
+        // the 40% proportion is calculated for charity and artist, and the _rest_ is sent to treasury
+        expect(coinsBalanceAfter).to.equal(coinsBalanceBefore + 201);
+        expect(charityBalanceAfter).to.equal(charityBalanceBefore + 400);
+        expect(artistBalanceAfter).to.equal(artistBalanceBefore + 400);
+      })
+    });
+
+    describe("when calling collectCoins()", () => {
+      it("should not accept withdrawals from random addresses", async () => {
+        await expect(vaultWithWrongSigner.collectCoins()).to.be.revertedWith("Ownable: caller is not the owner")
+      });
+
+      it("should transfer the correct amount to the owner", async () => {
+        let [coinsBalanceBefore, charityBalanceBefore, artistBalanceBefore] = await recordBalances();
+
+        expect(coinsBalanceBefore).to.be.gt(0);
+        await expect(() => vault.collectCoins()).to.changeEtherBalance(owner, coinsBalanceBefore);
+
+        let [coinsBalanceAfter, charityBalanceAfter, artistBalanceAfter] = await recordBalances();
+
+        expect(coinsBalanceAfter).to.equal(0);
+        expect(charityBalanceAfter).to.equal(charityBalanceBefore);
+        expect(artistBalanceAfter).to.equal(artistBalanceBefore);
+      });
+    });
+
+    describe("when calling collectStyleFees(uint256)", () => {
+      it("should not accept withdrawals from random addresses", async () => {
+        await expect(vaultWithWrongSigner.collectStyleFees(validStyleId)).to.be.revertedWith("Sender not Owner");
+      });
+
+      it("should not accept withdrawals from the vault owner", async () => {
+        await expect(vault.collectStyleFees(validStyleId)).to.be.revertedWith("Sender not Owner");
+      });
+
+      it("should not accept withdrawals for invalid style id", async () => {
+        let invalidStyleId = (validStyleId + 1) * 42;
+        await expect(vaultWithStyleOwner.collectStyleFees(invalidStyleId)).to.be.revertedWith("ERC721: owner query for nonexistent token");
+      });
+
+      it("should transfer the correct amount to the style owner", async () => {
+        let [coinsBalanceBefore, charityBalanceBefore, artistBalanceBefore] = await recordBalances();
+
+        expect(artistBalanceBefore).to.be.gt(0);
+        await expect(() => vaultWithStyleOwner.collectStyleFees(validStyleId)).to.changeEtherBalance(styleOwner, artistBalanceBefore);
+
+        let [coinsBalanceAfter, charityBalanceAfter, artistBalanceAfter] = await recordBalances();
+
+        expect(coinsBalanceAfter).to.equal(coinsBalanceBefore);
+        expect(charityBalanceAfter).to.equal(charityBalanceBefore);
+        expect(artistBalanceAfter).to.equal(0);
+      });
+    });
+
+    describe("when calling donateCharityBalance(address)", () => {
+      it("should not accept withdrawals from random addresses", async () => {
+        await expect(vaultWithWrongSigner.donateCharityBalance(someOtherUser.address)).to.be.revertedWith("Ownable: caller is not the owner")
+      });
+
+      it("should reject transfers to address zero", async () => {
+        await expect(vault.donateCharityBalance(ethers.constants.AddressZero)).to.be.reverted;
+      });
+
+      it("should transfer the correct amount to the designated address", async () => {
+        let [coinsBalanceBefore, charityBalanceBefore, artistBalanceBefore] = await recordBalances();
+
+        expect(charityBalanceBefore).to.be.gt(0);
+        await expect(() => vault.donateCharityBalance(charityUser.address)).to.changeEtherBalance(charityUser, charityBalanceBefore);
+        let [coinsBalanceAfter, charityBalanceAfter, artistBalanceAfter] = await recordBalances();
+
+        expect(coinsBalanceAfter).to.equal(coinsBalanceBefore);
+        expect(charityBalanceAfter).to.equal(0);
+        expect(artistBalanceAfter).to.equal(artistBalanceBefore);
+      });
     });
   });
 });

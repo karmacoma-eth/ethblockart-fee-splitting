@@ -124,6 +124,7 @@ contract BlockArtVault is Ownable, ReentrancyGuard {
 
     /// @dev Contract Owner triggers a transfer of the entire charity balance to some address
     function donateCharityBalance(address payable beneficiary) external onlyOwner nonReentrant {
+        require(beneficiary != address(0), "beneficiary must not be the zero address");
         uint256 _amount = charityBalance;
         charityBalance = 0;
         emit CharityBalanceDonated(beneficiary, _amount);
