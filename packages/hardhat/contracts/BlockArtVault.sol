@@ -23,8 +23,6 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 import "./BStyle.sol";
 
-// TODO: make this upgradable?
-// TODO: natspec everything out
 
 /// @dev all the accounting is done in basis points (1/100th of a percent) to leave enough room for small fees. For instance, a 0.35% fee split is just expressed as `35`.
 contract BlockArtVault is Ownable, ReentrancyGuard {
@@ -53,10 +51,21 @@ contract BlockArtVault is Ownable, ReentrancyGuard {
 
     event StyleFeeCollected(
         address indexed to,
-        uint256 styleId,
+        uint256 indexed styleId,
         uint256 amount
     );
 
+    event TreasuryBalanceCollected(
+        address indexed to,
+        uint256 amount
+    );
+
+    event NewDeposit(
+        uint256 indexed styleId,
+        uint256 styleFee,
+        uint256 charityFee,
+        uint256 treasuryFee
+    );
 
     /// @dev check if sender owns token
     modifier onlyStyleOwner(uint256 styleId) {
@@ -67,7 +76,7 @@ contract BlockArtVault is Ownable, ReentrancyGuard {
 
 
     constructor(address _stylesAddr) {
-        require(_stylesAddr != address(0));
+        require(_stylesAddr != address(0), "Address of the BlockStyle contract can not be the zero address");
         stylesAddr = _stylesAddr;
     }
 
@@ -94,10 +103,14 @@ contract BlockArtVault is Ownable, ReentrancyGuard {
         charityBalance += charityFee;
 
         // attribute the rest to the treasury
-        coinsBalance += msg.value - styleFee - charityFee;
+        uint256 treasuryFee = msg.value - styleFee - charityFee;
+        coinsBalance += treasuryFee;
+
+        emit NewDeposit(styleId, styleFee, charityFee, treasuryFee);
     }
 
 
+    /// @dev Called from the factory when a new style is minted, art is reminted or burned
     function depositToTreasury() external payable {
         coinsBalance += msg.value;
     }
@@ -117,8 +130,8 @@ contract BlockArtVault is Ownable, ReentrancyGuard {
     {
         uint256 _amount = getStyleFees(styleId);
         scfb[styleId] = 0;
-        emit StyleFeeCollected(msg.sender, styleId, _amount);
         payable(msg.sender).transfer(_amount);
+        emit StyleFeeCollected(msg.sender, styleId, _amount);
     }
 
 
@@ -127,8 +140,8 @@ contract BlockArtVault is Ownable, ReentrancyGuard {
         require(beneficiary != address(0), "beneficiary must not be the zero address");
         uint256 _amount = charityBalance;
         charityBalance = 0;
-        emit CharityBalanceDonated(beneficiary, _amount);
         beneficiary.transfer(_amount);
+        emit CharityBalanceDonated(beneficiary, _amount);
     }
 
 
@@ -137,6 +150,7 @@ contract BlockArtVault is Ownable, ReentrancyGuard {
         uint256 _amount = coinsBalance;
         coinsBalance = 0;
         payable(msg.sender).transfer(_amount);
+        emit TreasuryBalanceCollected(msg.sender, _amount);
     }
 
 
