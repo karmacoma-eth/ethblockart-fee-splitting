@@ -25,7 +25,8 @@ import "@openzeppelin/contracts/utils/Address.sol";
 import "./BStyle.sol";
 
 
-/// @dev all the accounting is done in basis points (1/100th of a percent) to leave enough room for small fees. For instance, a 0.35% fee split is just expressed as `35`.
+/// @dev all the accounting is done in basis points (1/100th of a percent) to leave enough room for small fees.
+/// For instance, a 0.35% fee split is just expressed as `35`.
 contract BlockArtVault is Ownable, ReentrancyGuard {
     using Address for address payable;
 
@@ -42,7 +43,7 @@ contract BlockArtVault is Ownable, ReentrancyGuard {
     mapping(uint256 => uint256) scfb;
 
     /// @dev minimum treasury fee in basis points
-    uint256 public minTreasuryFeeBasisPoints = 500; // 5%
+    uint256 public minTreasuryFeeBasisPoints = 5_00; // 5%
 
     /// @dev style nft
     address public immutable stylesAddr;
@@ -96,7 +97,8 @@ contract BlockArtVault is Ownable, ReentrancyGuard {
 
 
     /// @dev this function is called by BlockArtFactory at mint time
-    /// @dev the frontend should ensure that `styleFeeBasisPoints + charityFeeBasisPoints` leaves enough room for `minTreasuryFeeBasisPoints`
+    /// @dev the frontend should ensure that `styleFeeBasisPoints + charityFeeBasisPoints`
+    ///      leaves enough room for `minTreasuryFeeBasisPoints`
     ///
     /// @param styleFeeBasisPoints The style fee in basis points
     /// @param charityFeeBasisPoints The charity fee in basis points
@@ -105,7 +107,8 @@ contract BlockArtVault is Ownable, ReentrancyGuard {
         uint256 styleFeeBasisPoints,
         uint256 charityFeeBasisPoints
     ) external payable onlyFromFactory {
-        require((styleFeeBasisPoints + charityFeeBasisPoints + minTreasuryFeeBasisPoints) <= ONE_HUNDRED_PERCENT, "invalid styleFeeBasisPoints + charityFeeBasisPoints");
+        require((styleFeeBasisPoints + charityFeeBasisPoints + minTreasuryFeeBasisPoints) <= ONE_HUNDRED_PERCENT,
+            "invalid styleFeeBasisPoints + charityFeeBasisPoints");
         require(msg.value > 0, "msg.value must not be 0");
         require(BlockStyle(stylesAddr).ownerOf(styleId) != address(0), "styleId does not exist");
 
@@ -145,8 +148,8 @@ contract BlockArtVault is Ownable, ReentrancyGuard {
     {
         uint256 _amount = getStyleFees(styleId);
         scfb[styleId] = 0;
-        payable(msg.sender).sendValue(_amount);
         emit StyleFeeCollected(msg.sender, styleId, _amount);
+        payable(msg.sender).sendValue(_amount);
     }
 
 
@@ -155,8 +158,8 @@ contract BlockArtVault is Ownable, ReentrancyGuard {
         require(beneficiary != address(0), "beneficiary must not be the zero address");
         uint256 _amount = charityBalance;
         charityBalance = 0;
-        beneficiary.sendValue(_amount);
         emit CharityBalanceDonated(beneficiary, _amount);
+        beneficiary.sendValue(_amount);
     }
 
 
@@ -164,8 +167,8 @@ contract BlockArtVault is Ownable, ReentrancyGuard {
     function collectCoins() external onlyOwner nonReentrant {
         uint256 _amount = coinsBalance;
         coinsBalance = 0;
-        payable(msg.sender).sendValue(_amount);
         emit TreasuryBalanceCollected(msg.sender, _amount);
+        payable(msg.sender).sendValue(_amount);
     }
 
 
