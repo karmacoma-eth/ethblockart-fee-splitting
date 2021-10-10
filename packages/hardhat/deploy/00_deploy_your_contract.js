@@ -4,48 +4,73 @@
 
 module.exports = async ({ getNamedAccounts, deployments }) => {
   const { deploy } = deployments;
-  const { deployer } = await getNamedAccounts();
-  await deploy("YourContract", {
-    // Learn more about args here: https://www.npmjs.com/package/hardhat-deploy#deploymentsdeploy
+  const { deployer, styleOwner, artMinter } = await getNamedAccounts();
+  await deploy("OldBlockArtFactory", {
     from: deployer,
     //args: [ "Hello", ethers.utils.parseEther("1.5") ],
     log: true,
   });
 
-  /*
-    // Getting a previously deployed contract
-    const YourContract = await ethers.getContract("YourContract", deployer);
-    await YourContract.setPurpose("Hello");
-  
-    To take ownership of yourContract using the ownable library uncomment next line and add the 
-    address you want to be the owner. 
-    // yourContract.transferOwnership(YOUR_ADDRESS_HERE);
-
-    //const yourContract = await ethers.getContractAt('YourContract', "0xaAC799eC2d00C013f1F11c37E654e59B0429DF6A") //<-- if you want to instantiate a version of a contract at a specific address!
-  */
-
-  /*
-  //If you want to send value to an address from the deployer
-  const deployerWallet = ethers.provider.getSigner()
-  await deployerWallet.sendTransaction({
-    to: "0x34aA3F359A9D614239015126635CE7732c18fDF3",
-    value: ethers.utils.parseEther("0.001")
-  })
-  */
-
-  /*
-  //If you want to send some ETH to a contract on deploy (make your constructor payable!)
-  const yourContract = await deploy("YourContract", [], {
-  value: ethers.utils.parseEther("0.05")
+  await deploy("BlockStyle", {
+    from: deployer,
+    args: ["baseURI", "contractURI"],
+    log: true,
   });
-  */
 
-  /*
-  //If you want to link a library into your contract:
-  // reference: https://github.com/austintgriffith/scaffold-eth/blob/using-libraries-example/packages/hardhat/scripts/deploy.js#L19
-  const yourContract = await deploy("YourContract", [], {}, {
-   LibraryName: **LibraryAddress**
+  await deploy("BlockArt", {
+    from: deployer,
+    args: ["contractURI"],
+    log: true,
   });
-  */
+
+  const BlockStyle = await ethers.getContract("BlockStyle", deployer);
+
+  const balance = await BlockStyle.balanceOf(styleOwner);
+  if (balance == 0) {
+    console.log("style owner has no BlockStyle NFT yet, minting one");
+    await BlockStyle.mint(styleOwner, 200, 0, 0, "", { from: deployer});
+  }
+
+  const styleId = 1;
+  const styleCreator = await BlockStyle.getCreator(styleId);
+  // verify that we just minted style 1
+  console.log("styleCreator of styleId 1 is", styleCreator);
+  console.log("styleCreator === styleOwner", styleCreator == styleOwner);
+  if (styleCreator !== styleOwner) {
+    console.log("creating a new styleId for our styleOwner");
+
+    /*
+    function mint(
+      address to,
+      uint256 cap,
+      uint256 feeMul,
+      uint256 feeMin,
+      string memory canvas)
+    */
+    await BlockStyle.mint(styleOwner, 200, 0, 0, "", { from: deployer});
+  } else {
+    console.log("no need to mint a new style id");
+  }
+
+  const BlockArt = await ethers.getContract("BlockArt", deployer);
+  const OldBlockArtFactory = await ethers.getContract("OldBlockArtFactory", deployer);
+
+  await deploy("BlockArtVault", {
+    from: deployer,
+    args: [BlockStyle.address],
+    log: true,
+  });
+
+  const BlockArtVault = await ethers.getContract("BlockArtVault", deployer);
+
+  await deploy("BlockArtFactoryV3", {
+    from: deployer,
+    args: [BlockArt.address, BlockStyle.address, OldBlockArtFactory.address, BlockArtVault.address],
+    log: true,
+  });
+
+  const BlockArtFactoryV3 = await ethers.getContract("BlockArtFactoryV3", deployer);
+
 };
-module.exports.tags = ["YourContract"];
+
+module.exports.tags = ["OldBlockArtFactory"];
