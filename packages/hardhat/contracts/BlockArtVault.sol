@@ -47,6 +47,9 @@ contract BlockArtVault is Ownable, ReentrancyGuard {
     /// @dev style nft
     address public immutable stylesAddr;
 
+    /// @dev the address that is allowed to call deposit functions
+    address public blockArtFactory;
+
     event CharityBalanceDonated(
         address indexed to,
         uint256 amount
@@ -78,6 +81,14 @@ contract BlockArtVault is Ownable, ReentrancyGuard {
     }
 
 
+    /// @dev check if sender is the allowed factory contract
+    modifier onlyFromFactory() {
+        require(blockArtFactory != address(0), "must first initialize factory address with setFactoryAddress");
+        require(msg.sender == blockArtFactory, "Sender not BlockArtFactory");
+        _;
+    }
+
+
     constructor(address _stylesAddr) {
         require(_stylesAddr != address(0), "Address of the BlockStyle contract can not be the zero address");
         stylesAddr = _stylesAddr;
@@ -93,7 +104,7 @@ contract BlockArtVault is Ownable, ReentrancyGuard {
         uint256 styleId,
         uint256 styleFeeBasisPoints,
         uint256 charityFeeBasisPoints
-    ) external payable {
+    ) external payable onlyFromFactory {
         require((styleFeeBasisPoints + charityFeeBasisPoints + minTreasuryFeeBasisPoints) <= ONE_HUNDRED_PERCENT, "invalid styleFeeBasisPoints + charityFeeBasisPoints");
         require(msg.value > 0, "msg.value must not be 0");
         require(BlockStyle(stylesAddr).ownerOf(styleId) != address(0), "styleId does not exist");
@@ -115,7 +126,7 @@ contract BlockArtVault is Ownable, ReentrancyGuard {
 
 
     /// @dev Called from the factory when a new style is minted, art is reminted or burned
-    function depositToTreasury() external payable {
+    function depositToTreasury() external payable onlyFromFactory {
         coinsBalance += msg.value;
     }
 
@@ -161,6 +172,12 @@ contract BlockArtVault is Ownable, ReentrancyGuard {
     function setMinTreasuryFeeBasisPoints(uint256 newMinTreasuryFeeBasisPoints) external onlyOwner {
         require(newMinTreasuryFeeBasisPoints <= ONE_HUNDRED_PERCENT, "invalid minTreasuryFeeBasisPoints");
         minTreasuryFeeBasisPoints = newMinTreasuryFeeBasisPoints;
+    }
+
+
+    function setFactoryAddress(address _blockArtFactory) external onlyOwner {
+        require(_blockArtFactory != address(0), "invalid factory address");
+        blockArtFactory = _blockArtFactory;
     }
 
 
