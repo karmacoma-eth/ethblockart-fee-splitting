@@ -56,7 +56,7 @@ const DEBUG = true;
 const NETWORKCHECK = true;
 
 // 🛰 providers
-if (DEBUG) console.log("📡 Connecting to Mainnet Ethereum");
+if (DEBUG) console.log("📡 Connecting to ", targetNetwork.name);
 // const mainnetProvider = getDefaultProvider("mainnet", { infura: INFURA_ID, etherscan: ETHERSCAN_KEY, quorum: 1 });
 // const mainnetProvider = new InfuraProvider("mainnet",INFURA_ID);
 //
@@ -454,7 +454,7 @@ function App(props) {
               }}
               to="/"
             >
-              YourContract
+              BlockArtVault
             </Link>
           </Menu.Item>
           <Menu.Item key="/hints">
@@ -477,26 +477,6 @@ function App(props) {
               ExampleUI
             </Link>
           </Menu.Item>
-          <Menu.Item key="/mainnetdai">
-            <Link
-              onClick={() => {
-                setRoute("/mainnetdai");
-              }}
-              to="/mainnetdai"
-            >
-              Mainnet DAI
-            </Link>
-          </Menu.Item>
-          <Menu.Item key="/subgraph">
-            <Link
-              onClick={() => {
-                setRoute("/subgraph");
-              }}
-              to="/subgraph"
-            >
-              Subgraph
-            </Link>
-          </Menu.Item>
         </Menu>
 
         <Switch>
@@ -508,7 +488,7 @@ function App(props) {
             */}
 
             <Contract
-              name="YourContract"
+              name="BlockArtVault"
               signer={userSigner}
               provider={localProvider}
               address={address}
