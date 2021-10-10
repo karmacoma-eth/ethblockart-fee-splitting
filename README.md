@@ -1,96 +1,98 @@
-# 🏗 Scaffold-ETH
+# 🏦 BlockArtVault
 
-> everything you need to build on Ethereum! 🚀
+This is a submission to the ETHGlobal October 2021 hackathon.
 
-🧪 Quickly experiment with Solidity using a frontend that adapts to your smart contract:
+We introduce a new smart contract integration for [ethblock.art](https://ethblock.art/), such that at mint time, users can select how the minting fee will be split between:
 
-![image](https://user-images.githubusercontent.com/2653167/124158108-c14ca380-da56-11eb-967e-69cde37ca8eb.png)
+- the style artist
+- the EthBlockArt treasury
+- a charity fund
+
+The UI is responsible for providing this affordance to users (TBD) and submitting it in the minting transaction.
+
+On the smart contract end, a new [BlockArtFactoryV3.mintArt()](https://github.com/karmacoma-eth/scaffoldy-ethblockart/blob/master/packages/hardhat/contracts/BlockArtFactoryV3.sol#L100) function expects two new arguments:
+
+- `uint256 styleFeeBasisPoints`
+- `uint256 charityFeeBasisPoints`
+
+It passes these along to a new [BlockArtVault.sol](https://github.com/karmacoma-eth/scaffoldy-ethblockart/blob/master/packages/hardhat/contracts/BlockArtVault.sol) contract that is responsible for holding all the funds and doing all the accounting.
+
+For instance, the [depositAndSplit](https://github.com/karmacoma-eth/scaffoldy-ethblockart/blob/master/packages/hardhat/contracts/BlockArtVault.sol#L80) function computes the `styleFee` and `charityFee` based on user input and credits them to the appropriate balances. The rest goes to the treasury (`coinsBalance`), retrievable by the `BlockArtVault` owner.
+
+The intention for the charity fund is for the EthBlockArt community to vote on a specific charity to donate funds to. At the end of the process, the `BlockArtVault` owner would call [donateCharityBalance(address payable beneficiary)](https://github.com/karmacoma-eth/scaffoldy-ethblockart/blob/master/packages/hardhat/contracts/BlockArtVault.sol#L126) to send the entire `charityBalance` to the designated charity address.
 
 
-# 🏄‍♂️ Quick Start
+# Testing
 
-Prerequisites: [Node](https://nodejs.org/en/download/) plus [Yarn](https://classic.yarnpkg.com/en/docs/install/) and [Git](https://git-scm.com/downloads)
+Having all the funds managed in `BlockArtVault` makes it easier to test different corner cases around deposits and withdrawals, and `BlockArtFactory` can focus on the administration of styles and art.
 
-> clone/fork 🏗 scaffold-eth:
+See the tests in [blockArtVaultTest.js](https://github.com/karmacoma-eth/scaffoldy-ethblockart/blob/master/packages/hardhat/test/blockArtVaultTest.js):
 
-```bash
-git clone https://github.com/austintgriffith/scaffold-eth.git
+```
+  EthBlockArt fee splitting
+    ✅ should not deploy BlockArtVault without a valid BlockStyle address
+    ✅ should deploy BlockArtVault successfully with a valid BlockStyle address (48ms)
+    ✅ should support updating minTreasuryFeeBasisPoints
+
+  when calling depositAndSplit
+    ✅ should not accept styleFeeBasisPoints = -1
+    ✅ should not accept styleFeeBasisPoints > 10000
+    ✅ should not accept charityFeeBasisPoints = -1
+    ✅ should not accept charityFeeBasisPoints > 10000
+    ✅ should not accept styleFeeBasisPoints + charityFeeBasisPoints too big for minTreasuryFeeBasisPoints
+    ✅ should not accept calls with no value
+    ✅ should support sending everything to the treasury (39ms)
+    ✅ should support sending everything to the artist (minus minTreasuryFeeBasisPoints)
+    ✅ should support sending everything to charity (minus minTreasuryFeeBasisPoints) (38ms)
+    ✅ should support arbitrary splits like 40% each to charity and artist, 20% to treasury
+    ✅ should support arbitrary splits when the value can't be nicely split
+
+  when calling collectCoins()
+    ✅ should not accept withdrawals from random addresses
+    ✅ should transfer the correct amount to the owner
+
+  when calling collectStyleFees(uint256)
+    ✅ should not accept withdrawals from random addresses
+    ✅ should not accept withdrawals from the vault owner
+    ✅ should not accept withdrawals for invalid style id
+    ✅ should transfer the correct amount to the style owner (39ms)
+
+  when calling donateCharityBalance(address)
+    ✅ should not accept withdrawals from random addresses
+    ✅ should reject transfers to address zero
+    ✅ should transfer the correct amount to the designated address
+
+  when calling setMinTreasuryFeeBasisPoints(uint256)
+    ✅ should reject calls from random addresses
+    ✅ should validate the new value
+    ✅ should support setting minTreasuryFeeBasisPoints to 0% (38ms)
+    ✅ should support setting minTreasuryFeeBasisPoints to 100% (40ms)
+
+
+  27 passing (1s)
+
+✨  Done in 3.29s.
 ```
 
-> install and start your 👷‍ Hardhat chain:
+# 🧰 How to
 
-```bash
-cd scaffold-eth
-yarn install
-yarn chain
-```
+Compile:
 
-> in a second terminal window, start your 📱 frontend:
-
-```bash
-cd scaffold-eth
-yarn start
-```
-
-> in a third terminal window, 🛰 deploy your contract:
-
-```bash
-cd scaffold-eth
-yarn deploy
-```
-
-🔏 Edit your smart contract `YourContract.sol` in `packages/hardhat/contracts`
-
-📝 Edit your frontend `App.jsx` in `packages/react-app/src`
-
-💼 Edit your deployment scripts in `packages/hardhat/deploy`
-
-📱 Open http://localhost:3000 to see the app
-
-# 📚 Documentation
-
-Documentation, tutorials, challenges, and many more resources, visit: [docs.scaffoldeth.io](https://docs.scaffoldeth.io)
-
-# 🔭 Learning Solidity
-
-📕 Read the docs: https://docs.soliditylang.org
-
-📚 Go through each topic from [solidity by example](https://solidity-by-example.org) editing `YourContract.sol` in **🏗 scaffold-eth**
-
-- [Primitive Data Types](https://solidity-by-example.org/primitives/)
-- [Mappings](https://solidity-by-example.org/mapping/)
-- [Structs](https://solidity-by-example.org/structs/)
-- [Modifiers](https://solidity-by-example.org/function-modifier/)
-- [Events](https://solidity-by-example.org/events/)
-- [Inheritance](https://solidity-by-example.org/inheritance/)
-- [Payable](https://solidity-by-example.org/payable/)
-- [Fallback](https://solidity-by-example.org/fallback/)
-
-📧 Learn the [Solidity globals and units](https://solidity.readthedocs.io/en/v0.6.6/units-and-global-variables.html)
-
-# 🛠 Buidl
-
-Check out all the [active branches](https://github.com/austintgriffith/scaffold-eth/branches/active), [open issues](https://github.com/austintgriffith/scaffold-eth/issues), and join/fund the 🏰 [BuidlGuidl](https://BuidlGuidl.com)!
-
-  
- - 🚤  [Follow the full Ethereum Speed Run](https://medium.com/@austin_48503/%EF%B8%8Fethereum-dev-speed-run-bd72bcba6a4c)
+    yarn compile
 
 
- - 🎟  [Create your first NFT](https://github.com/austintgriffith/scaffold-eth/tree/simple-nft-example)
- - 🥩  [Build a staking smart contract](https://github.com/austintgriffith/scaffold-eth/tree/challenge-1-decentralized-staking)
- - 🏵  [Deploy a token and vendor](https://github.com/austintgriffith/scaffold-eth/tree/challenge-2-token-vendor)
- - 🎫  [Extend the NFT example to make a "buyer mints" marketplace](https://github.com/austintgriffith/scaffold-eth/tree/buyer-mints-nft)
- - 🎲  [Learn about commit/reveal](https://github.com/austintgriffith/scaffold-eth/tree/commit-reveal-with-frontend)
- - ✍️  [Learn how ecrecover works](https://github.com/austintgriffith/scaffold-eth/tree/signature-recover)
- - 👩‍👩‍👧‍👧  [Build a multi-sig that uses off-chain signatures](https://github.com/austintgriffith/scaffold-eth/tree/meta-multi-sig)
- - ⏳  [Extend the multi-sig to stream ETH](https://github.com/austintgriffith/scaffold-eth/tree/streaming-meta-multi-sig)
- - ⚖️  [Learn how a simple DEX works](https://medium.com/@austin_48503/%EF%B8%8F-minimum-viable-exchange-d84f30bd0c90)
- - 🦍  [Ape into learning!](https://github.com/austintgriffith/scaffold-eth/tree/aave-ape)
+Run tests:
 
-# 💬 Support Chat
+    yarn tests
 
-Join the telegram [support chat 💬](https://t.me/joinchat/KByvmRe5wkR-8F_zz6AjpA) to ask questions and find others building with 🏗 scaffold-eth!
 
----
+Run Slither:
 
-🙏 Please check out our [Gitcoin grant](https://gitcoin.co/grants/2851/scaffold-eth) too!
+    (cd packages/hardhat && slither .)
+
+
+# Improvement Ideas
+
+💌 voting for the charity based on verified EthBlockArt holder status in Discord
+
+⏳ a timelock mechanism for the charity donations (i.e. nominate a new beneficiary address that can only receive funds after being nominated for X days)

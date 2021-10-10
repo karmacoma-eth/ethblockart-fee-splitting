@@ -19,8 +19,6 @@ pragma solidity ^0.8.0;
 
 import "./ERC721Style.sol";
 
-// import "hardhat/console.sol";
-
 contract BlockStyle is ERC721Style {
     constructor(string memory baseURI, string memory contractURI)
         ERC721("BlockStyle", "EBS")

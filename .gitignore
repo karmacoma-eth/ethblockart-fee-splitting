@@ -64,3 +64,6 @@ yarn-error.log*
 .netlify
 *.tsbuildinfo
 *.stackdump
+
+# editor config
+.vscode/**/*
