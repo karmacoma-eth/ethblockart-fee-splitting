@@ -93,6 +93,7 @@ contract BlockArtVault is Ownable, ReentrancyGuard {
     ) external payable {
         require((styleFeeBasisPoints + charityFeeBasisPoints + minTreasuryFeeBasisPoints) <= ONE_HUNDRED_PERCENT, "invalid styleFeeBasisPoints + charityFeeBasisPoints");
         require(msg.value > 0, "msg.value must not be 0");
+        require(BlockStyle(stylesAddr).ownerOf(styleId) != address(0), "styleId does not exist");
 
         uint256 styleFee = applyFee(msg.value, styleFeeBasisPoints);
         uint256 charityFee = applyFee(msg.value, charityFeeBasisPoints);

@@ -6,6 +6,7 @@ use(solidity);
 
 describe("EthBlockArt fee splitting", function () {
   const validStyleId = 1;
+  const invalidStyleId = 42;
   let BlockArtVaultFactory;
   let BlockStyleFactory;
   let blockStyle;
@@ -40,6 +41,10 @@ describe("EthBlockArt fee splitting", function () {
     let minTreasuryFeeBasisPoints = (await vault.minTreasuryFeeBasisPoints()).toNumber();
 
     describe("when calling depositAndSplit", () => {
+      it("should not accept calls with an invalid styleId", async () => {
+        await expect(vault.depositAndSplit(invalidStyleId, 0, 0, {value: 1000})).to.be.revertedWith("ERC721: owner query for nonexistent token");
+      });
+
       it("should not accept styleFeeBasisPoints = -1", async () => {
         await expect(vault.depositAndSplit(validStyleId, -1, 0)).to.be.reverted;
       });
