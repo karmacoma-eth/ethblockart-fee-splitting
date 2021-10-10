@@ -20,12 +20,15 @@ pragma experimental ABIEncoderV2;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/Address.sol";
 
 import "./BStyle.sol";
 
 
 /// @dev all the accounting is done in basis points (1/100th of a percent) to leave enough room for small fees. For instance, a 0.35% fee split is just expressed as `35`.
 contract BlockArtVault is Ownable, ReentrancyGuard {
+    using Address for address payable;
+
     /// @dev 100% in basis points
     uint256 constant ONE_HUNDRED_PERCENT = 100 * 100;
 
@@ -131,7 +134,7 @@ contract BlockArtVault is Ownable, ReentrancyGuard {
     {
         uint256 _amount = getStyleFees(styleId);
         scfb[styleId] = 0;
-        payable(msg.sender).transfer(_amount);
+        payable(msg.sender).sendValue(_amount);
         emit StyleFeeCollected(msg.sender, styleId, _amount);
     }
 
@@ -141,7 +144,7 @@ contract BlockArtVault is Ownable, ReentrancyGuard {
         require(beneficiary != address(0), "beneficiary must not be the zero address");
         uint256 _amount = charityBalance;
         charityBalance = 0;
-        beneficiary.transfer(_amount);
+        beneficiary.sendValue(_amount);
         emit CharityBalanceDonated(beneficiary, _amount);
     }
 
@@ -150,7 +153,7 @@ contract BlockArtVault is Ownable, ReentrancyGuard {
     function collectCoins() external onlyOwner nonReentrant {
         uint256 _amount = coinsBalance;
         coinsBalance = 0;
-        payable(msg.sender).transfer(_amount);
+        payable(msg.sender).sendValue(_amount);
         emit TreasuryBalanceCollected(msg.sender, _amount);
     }
 
