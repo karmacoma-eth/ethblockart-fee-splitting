@@ -134,7 +134,7 @@ contract BlockArtVault is Ownable, ReentrancyGuard {
     }
 
 
-    function getStyleFees(uint256 styleId) public view returns(uint256) {
+    function getStyleBalance(uint256 styleId) public view returns(uint256) {
         require(BlockStyle(stylesAddr).ownerOf(styleId) != address(0), "styleId does not exist");
         return scfb[styleId];
     }
@@ -146,7 +146,7 @@ contract BlockArtVault is Ownable, ReentrancyGuard {
         onlyStyleOwner(styleId)
         nonReentrant
     {
-        uint256 _amount = getStyleFees(styleId);
+        uint256 _amount = getStyleBalance(styleId);
         scfb[styleId] = 0;
         emit StyleFeeCollected(msg.sender, styleId, _amount);
         payable(msg.sender).sendValue(_amount);
@@ -181,11 +181,6 @@ contract BlockArtVault is Ownable, ReentrancyGuard {
     function setFactoryAddress(address _blockArtFactory) external onlyOwner {
         require(_blockArtFactory != address(0), "invalid factory address");
         blockArtFactory = _blockArtFactory;
-    }
-
-
-    function getStyleBalance(uint256 styleId) external view returns (uint256) {
-        return scfb[styleId];
     }
 
 

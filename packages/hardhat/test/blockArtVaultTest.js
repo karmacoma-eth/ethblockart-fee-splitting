@@ -16,7 +16,7 @@ describe('EthBlockArt fee splitting', function () {
   async function recordBalances(someVault = vault) {
     let coinsBalance = (await someVault.coinsBalance()).toNumber()
     let charityBalance = (await someVault.charityBalance()).toNumber()
-    let artistBalance = (await someVault.getStyleFees(validStyleId)).toNumber()
+    let artistBalance = (await someVault.getStyleBalance(validStyleId)).toNumber()
     return [coinsBalance, charityBalance, artistBalance]
   }
 
