@@ -31,19 +31,30 @@ See the tests in [blockArtVaultTest.js](https://github.com/karmacoma-eth/scaffol
 ```
   EthBlockArt fee splitting
     ✅ should not deploy BlockArtVault without a valid BlockStyle address
-    ✅ should deploy BlockArtVault successfully with a valid BlockStyle address (48ms)
-    ✅ should support updating minTreasuryFeeBasisPoints
+    ✅ should deploy BlockArtVault successfully with a valid BlockStyle address (43ms)
+    ✅ should support updating minTreasuryFeeBasisPoints (52ms)
+
+  when factory address is not set
+    ✅ should not accept calls to depositAndSplit
+    ✅ should not accept calls to depositToTreasury
+
+  when calling setFactoryAddress
+    ✅ should not accept calls from random user
+    ✅ should not set it to 0x0
+    ✅ should let the owner set it to a valid address
 
   when calling depositAndSplit
+    ✅ should not accept calls that don't come from the factory address
+    ✅ should not accept calls with an invalid styleId
     ✅ should not accept styleFeeBasisPoints = -1
     ✅ should not accept styleFeeBasisPoints > 10000
     ✅ should not accept charityFeeBasisPoints = -1
     ✅ should not accept charityFeeBasisPoints > 10000
     ✅ should not accept styleFeeBasisPoints + charityFeeBasisPoints too big for minTreasuryFeeBasisPoints
     ✅ should not accept calls with no value
-    ✅ should support sending everything to the treasury (39ms)
+    ✅ should support sending everything to the treasury
     ✅ should support sending everything to the artist (minus minTreasuryFeeBasisPoints)
-    ✅ should support sending everything to charity (minus minTreasuryFeeBasisPoints) (38ms)
+    ✅ should support sending everything to charity (minus minTreasuryFeeBasisPoints)
     ✅ should support arbitrary splits like 40% each to charity and artist, 20% to treasury
     ✅ should support arbitrary splits when the value can't be nicely split
 
@@ -65,13 +76,11 @@ See the tests in [blockArtVaultTest.js](https://github.com/karmacoma-eth/scaffol
   when calling setMinTreasuryFeeBasisPoints(uint256)
     ✅ should reject calls from random addresses
     ✅ should validate the new value
-    ✅ should support setting minTreasuryFeeBasisPoints to 0% (38ms)
-    ✅ should support setting minTreasuryFeeBasisPoints to 100% (40ms)
+    ✅ should support setting minTreasuryFeeBasisPoints to 0% (47ms)
+    ✅ should support setting minTreasuryFeeBasisPoints to 100% (49ms)
 
 
-  27 passing (1s)
-
-✨  Done in 3.29s.
+  34 passing (1s)
 ```
 
 # 🧰 How to
@@ -80,15 +89,20 @@ Compile:
 
     yarn compile
 
+Run Slither:
+
+    (cd packages/hardhat && slither .)
 
 Run tests:
 
     yarn tests
 
+Run UI:
 
-Run Slither:
-
-    (cd packages/hardhat && slither .)
+    yarn chain
+    yarn deploy
+    yarn start
+    open http://localhost:3000/
 
 
 # Improvement Ideas
